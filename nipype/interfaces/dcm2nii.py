@@ -161,7 +161,7 @@ class Dcm2nii(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['converted_files'] = self.output_files
+        outputs['converted_files'] =list(set(self.output_files))
         outputs['reoriented_files'] = self.reoriented_files
         outputs['reoriented_and_cropped_files'] = self.reoriented_and_cropped_files
         outputs['bvecs'] = self.bvecs
