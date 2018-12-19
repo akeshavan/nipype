@@ -1393,6 +1393,7 @@ class EddyQuadInputSpec(FSLCommandInputSpec):
     mask_file = File(
         exists=True,
         mandatory=True,
+        checksize=True,
         argstr="--mask=%s",
         desc="Binary mask file"
     )
@@ -1416,6 +1417,7 @@ class EddyQuadInputSpec(FSLCommandInputSpec):
     )
     field = File(
         argstr='--field=%s',
+        checksize=True,
         desc="TOPUP estimated field (in Hz)",
     )
     slice_spec = File(
@@ -1427,6 +1429,12 @@ class EddyQuadInputSpec(FSLCommandInputSpec):
         argstr='--verbose',
         desc="Display debug messages",
     )
+    checksize = traits.Bool(False,
+                            usedefault=True,
+                            desc=("Before running topup, check that the size of the inputs"
+                                  " have no odd number of slices in the x,y,z direction. If"
+                                  " there is an odd number, add a slice in that dimension before"
+                                  " running topup"))
 
 
 class EddyQuadOutputSpec(TraitedSpec):
@@ -1498,7 +1506,7 @@ class EddyQuadOutputSpec(TraitedSpec):
     )
 
 
-class EddyQuad(FSLCommand):
+class EddyQuad(TOPUPBase):
     """
     Interface for FSL eddy_quad, a tool for generating single subject reports
     and storing the quality assessment indices for each subject.
@@ -1533,7 +1541,10 @@ class EddyQuad(FSLCommand):
     def _list_outputs(self):
         import json
         outputs = self.output_spec().get()
-        out_dir = os.path.abspath(self.inputs.output_dir)
+        if not isdefined(self.inputs.output_dir):
+            out_dir = os.path.abspath(os.path.split(self.inputs.base_name)[1] + ".qc.nii.gz")
+        else:
+            out_dir = os.path.abspath(self.inputs.output_dir)
         outputs['out_qc_json'] = os.path.join(out_dir, 'qc.json')
         outputs['out_qc_pdf'] = os.path.join(out_dir, 'qc.pdf')
 
@@ -1547,7 +1558,7 @@ class EddyQuad(FSLCommand):
 
         if qc.get('qc_field_flag'):
             outputs['out_avg_b0_pe_png'] = [
-                os.path.join(out_dir, 'avg_b0_pe{i:d}'.format(i=i))
+                os.path.join(out_dir, 'avg_b0_pe{i:d}.png'.format(i=i))
                 for i in range(qc.get('data_no_PE_dirs'))
             ]
 
@@ -1555,7 +1566,7 @@ class EddyQuad(FSLCommand):
 
         if qc.get('qc_cnr_flag'):
             outputs['out_cnr_png'] = [
-                os.path.join(out_dir, 'cnr{i:04d}.nii.gz.png')
+                os.path.join(out_dir, 'cnr{i:04d}.nii.gz.png'.format(i=i))
                 for i, _ in enumerate(qc.get('qc_cnr_avg'))
             ]
 
@@ -1563,8 +1574,9 @@ class EddyQuad(FSLCommand):
             outputs['out_residuals'] = os.path.join(out_dir, 'eddy_msr.txt')
 
         if qc.get('qc_ol_flag'):
-            outputs['out_clean_volumes'] = os.path.join(out_dir,
-                                                        'vols_no_outliers.txt')
+            vol_file = os.path.join(out_dir, 'vols_no_outliers.txt')
+            if os.path.exists(vol_file):
+                outputs['out_clean_volumes'] = vol_file
 
         return outputs
 
