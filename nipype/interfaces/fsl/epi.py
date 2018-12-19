@@ -642,12 +642,14 @@ class EddyInputSpec(FSLCommandInputSpec):
     in_file = File(
         exists=True,
         mandatory=True,
+        checksize=True,
         argstr='--imain=%s',
         desc=('File containing all the images to estimate '
               'distortions for'))
     in_mask = File(
         exists=True,
         mandatory=True,
+        checksize=True,
         argstr='--mask=%s',
         desc='Mask to indicate brain')
     in_index = File(
@@ -785,11 +787,19 @@ class EddyInputSpec(FSLCommandInputSpec):
         False, desc='Output CNR-Maps', argstr='--cnr_maps', min_ver='5.0.10')
     residuals = traits.Bool(
         False, desc='Output Residuals', argstr='--residuals', min_ver='5.0.10')
+    checksize = traits.Bool(False,
+                            usedefault=True,
+                            desc=("Before applying topup, check that the size of the inputs"
+                                  " have no odd number of slices in the x,y,z direction. If"
+                                  " there is an odd number, add a slice in that dimension before"
+                                  " running applytopup"))
+    verbose = traits.Bool(True, usedefault=True, argstr="-v")
 
 
 class EddyOutputSpec(TraitedSpec):
     out_corrected = File(
-        exists=True, desc='4D image file containing all the corrected volumes')
+        exists=True, desc='4D image file containing all the corrected volumes',
+        checksize=True)
     out_parameter = File(
         exists=True,
         desc=('text file with parameters definining the field and'
@@ -812,12 +822,14 @@ class EddyOutputSpec(TraitedSpec):
         desc=('Text-file with a plain language report on what '
               'outlier slices eddy has found'))
     out_cnr_maps = File(
-        exists=True, desc='path/name of file with the cnr_maps')
+        exists=True, desc='path/name of file with the cnr_maps',
+        checksize=True)
     out_residuals = File(
-        exists=True, desc='path/name of file with the residuals')
+        exists=True, desc='path/name of file with the residuals',
+        checksize=True)
 
 
-class Eddy(FSLCommand):
+class Eddy(TOPUPBase):
     """
     Interface for FSL eddy, a tool for estimating and correcting eddy
     currents induced distortions. `User guide
